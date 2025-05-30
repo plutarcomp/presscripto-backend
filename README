@@ -10,3 +10,7 @@ npm install
 ```bash
 node server.js 
 ```
+## Configguración para Base de Datos
+
+- Crear archivo .env en carpeta raiz
+- Introducir las credenciales que se encuentran en Slack - express database
