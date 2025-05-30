@@ -1,0 +1,12 @@
+# Instrucciones
+
+Para levantar el servicio:
+
+- Instalar paqueterias
+```bash
+npm install
+```
+- Levantar backend
+```bash
+node server.js 
+```
