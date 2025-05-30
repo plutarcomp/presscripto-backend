@@ -1,5 +1,10 @@
 # Instrucciones
 
+EL proyecto fue creado con:
+- Node
+- Express
+- Nodemon
+
 Para levantar el servicio:
 
 - Instalar paqueterias
@@ -10,7 +15,82 @@ npm install
 ```bash
 node server.js 
 ```
-## Configguración para Base de Datos
 
-- Crear archivo .env en carpeta raiz
+Ya se tiene configurado el CORS, por lo que se recomienda no modificar esa sección.
+
+## Configuración para Base de Datos
+
+- Crear archivo .env en carpeta raiz (por razones de seguridad no se guardara en el repositorio, esta excluido mediante el gitignore)
 - Introducir las credenciales que se encuentran en Slack - express database
+
+
+## Swagger
+Se instalo la herrameinta de swagger ui para poder realizar de manera mas rapida, los diferentes metodos,
+Uso de la herramienta:
+
+Template para el uso de swagger antes de tu metodo
+```javascript
+/**
+ * @swagger
+ * /api/{resource}/{id}:
+ *   <method>:
+ *     tags:
+ *       - <TagName>  # Agrupa las rutas bajo una categoría o sección
+ *     summary: <Short description>
+ *     description: <Detailed description>
+ *     parameters:
+ *       - in: <parameter location (path, query, body, etc.)>
+ *         name: <parameter name>
+ *         required: <true/false>
+ *         description: <parameter description>
+ *         schema:
+ *           type: <type of parameter (string, integer, etc.)>
+ *           example: <example value>
+ *     responses:
+ *       <status code>:
+ *         description: <response description>
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: <type of response (object, array, etc.)>
+ *               properties:
+ *                 <property name>:
+ *                   type: <property type (string, integer, etc.)>
+ *                   example: <example value>
+ *       <status code>:
+ *         description: <response description>
+ */
+```
+
+Descripción del Comentario Swagger
+tags: Agrupa la ruta bajo un grupo específico dentro de Swagger UI. Los tags te permiten organizar las rutas de manera lógica en la UI. 
+
+summary: Una breve descripción del propósito de la ruta. Debe ser clara y concisa.
+
+description: Explicación más detallada de lo que hace la ruta. Esta descripción puede ser más extensa y explicativa.
+
+parameters: Especifica los parámetros que la ruta espera recibir. Aquí se puede especificar si es un parámetro de tipo path, query, o body, y cómo debe ser usado.
+
+in: path: Especifica que el parámetro está en la URL (ruta).
+
+name: El nombre del parámetro que se debe pasar.
+
+required: true: Indica que este parámetro es obligatorio.
+
+description: Descripción del parámetro.
+
+schema: Especifica el tipo de datos que se espera recibir.
+
+responses: Define las posibles respuestas para esta ruta, con los códigos de estado HTTP.
+
+200: Respuesta exitosa, generalmente cuando la operación se completa correctamente.
+
+404: Respuesta en caso de que no se encuentre el doctor.
+
+500: Respuesta en caso de error del servidor.
+
+## Puertos
+
+La API esta configurada para que se levante en http://localhost:3000
+
+Si quieres acceder a la Interfaz grafica de Swagger, esta se levantara en http://localhost:3000/swagger
