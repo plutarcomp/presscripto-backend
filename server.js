@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors');  // Importamos el middleware CORS
+const cors = require('cors');  
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocs = require('./swaggerDocs');  // Importamos la configuración de Swagger
 const doctorsRoutes = require('./routes/doctors');  // Importamos las rutas de los doctores
