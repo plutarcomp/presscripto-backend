@@ -11,12 +11,13 @@ const swaggerOptions = {
     tags: [
       {
         name: 'Doctores',  // Tag para las rutas generales de doctores
-        description: 'Catalogo de la tabla de "doctors"'
+        description: 'Endpoint para obtener información de doctores'
       },
+      
       {
-        name: 'Detalles de los Doctores',  // Tag para las rutas específicas de detalles de doctores
-        description: 'Endpoint para obtener información detallada'
-      }
+        name: 'Especialidades',  // Tag para las rutas de especialidades
+        description: 'Endpoint para obtener las especialidades médicas'
+      },
     ],
   },
   apis: ['./routes/*.js'],
