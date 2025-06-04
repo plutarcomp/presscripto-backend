@@ -6,6 +6,7 @@ const doctorsRoutes = require('./routes/doctors');
 const specialtiesRoutes = require('./routes/specialties');
 
 
+
 const app = express();
 const port = 3000;
 
@@ -23,7 +24,7 @@ app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Rutas para la api
 app.use('/api/doctors', doctorsRoutes);
-app.use('/api/specialties', specialtiesRoutes); 
+app.use('/api/specialties', specialtiesRoutes);
 
 // Ruta health check
 app.get('/health', (req, res) => {
