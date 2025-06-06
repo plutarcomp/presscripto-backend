@@ -2,16 +2,18 @@ const express = require('express');
 const db = require('../db');  // Importamos la conexión a la base de datos
 const router = express.Router();
 
+// Metodo GET ALL
 /**
  * @swagger
  * /api/doctors:
  *   get:
  *     tags:
  *       - Doctores
- *     summary: Obtiene una lista de todos los doctores
+ *     summary: Obtiene una lista de todos los doctores con sus especialidades e imágenes
+ *     description: Retorna una lista de todos los doctores con sus especialidades asociadas y las URLs de sus imágenes.
  *     responses:
  *       200:
- *         description: Lista de doctores
+ *         description: Lista de doctores con especialidades e imágenes
  *         content:
  *           application/json:
  *             schema:
@@ -34,9 +36,16 @@ const router = express.Router();
  *                   availability:
  *                     type: boolean
  *                     example: true
- *                   specialty_id:
- *                     type: integer
- *                     example: 2
+ *                   specialty_names:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                       example: "Cardiología"
+ *                   image_urls:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                       example: "http://example.com/doctor-image.jpg"
  *                   created_at:
  *                     type: string
  *                     format: date-time
@@ -48,16 +57,35 @@ const router = express.Router();
  *       500:
  *         description: Error al obtener los doctores
  */
+
 router.get('/', async (req, res) => {
   try {
-    const doctors = await db.any('SELECT * FROM doctors');
-    res.json(doctors);
+    // Realizamos la consulta SQL para obtener los doctores con sus especialidades y las imágenes asociadas
+    const doctors = await db.any(`
+      SELECT 
+        d.doctor_id, 
+        d.first_name, 
+        d.last_name, 
+        d.phone_number, 
+        d.availability, 
+        array_agg(DISTINCT s.name) AS specialty_names,  -- Agrupamos las especialidades eliminando duplicados
+        array_agg(DISTINCT di.image_url) AS image_urls  -- Agrupamos las imágenes eliminando duplicados
+      FROM doctors d
+      LEFT JOIN doctors_specialties ds ON d.doctor_id = ds.doctor_id
+      LEFT JOIN specialties s ON ds.specialty_id = s.specialty_id
+      LEFT JOIN doctor_images di ON d.doctor_id = di.doctor_id  -- Unimos la tabla de imágenes
+      GROUP BY d.doctor_id  -- Agrupamos por doctor
+      ORDER BY d.doctor_id ASC
+    `);
+
+    res.json(doctors);  // Devolvemos la lista de doctores con sus especialidades e imágenes
   } catch (error) {
     console.error('Error al obtener los doctores:', error);
     res.status(500).json({ mensaje: 'Error al obtener los doctores' });
   }
 });
 
+// Metodo GET by id
 /**
  * @swagger
  * /api/doctors/{doctor_id}:
@@ -170,8 +198,8 @@ router.get('/:doctor_id', async (req, res) => {
       [doctor_id]
     );
 
-    // Obtener la imagen asociada al doctor
-    const image = await db.oneOrNone(
+    // Obtener todas las imágenes asociadas al doctor
+    const images = await db.any(
       `SELECT image_url FROM doctor_images WHERE doctor_id = $1`,
       [doctor_id]
     );
@@ -185,7 +213,7 @@ router.get('/:doctor_id', async (req, res) => {
       availability: doctor.availability,
       specialties,
       addresses,
-      image_url: image ? image.image_url : null
+      image_urls: images.map(image => image.image_url) // Devolvemos todas las imágenes como un arreglo de URLs
     });
 
   } catch (error) {
@@ -194,15 +222,15 @@ router.get('/:doctor_id', async (req, res) => {
   }
 });
 
-
+// Metodo POST 
 /**
  * @swagger
  * /api/doctors:
  *   post:
  *     tags:
  *       - Doctores  # Agrupamos esta ruta bajo "Doctores"
- *     summary: Crea un nuevo doctor con varias direcciones
- *     description: Crea un nuevo doctor en la base de datos junto con sus especialidades, varias direcciones e imagen.
+ *     summary: Crea un nuevo doctor con varias especialidades, direcciones e imágenes
+ *     description: Crea un nuevo doctor en la base de datos junto con sus especialidades, varias direcciones e imágenes.
  *     requestBody:
  *       required: true
  *       content:
@@ -248,21 +276,74 @@ router.get('/:doctor_id', async (req, res) => {
  *                       type: string
  *                       example: "USA"
  *               image_url:
- *                 type: string
- *                 example: "http://example.com/doctor-image.jpg"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   example: "http://example.com/doctor-image1.jpg"  # Una URL de imagen
  *     responses:
  *       201:
  *         description: Doctor creado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 doctor_id:
+ *                   type: integer
+ *                   example: 1
+ *                 first_name:
+ *                   type: string
+ *                   example: "Juan"
+ *                 last_name:
+ *                   type: string
+ *                   example: "Pérez"
+ *                 phone_number:
+ *                   type: string
+ *                   example: "5551234567"
+ *                 availability:
+ *                   type: boolean
+ *                   example: true
+ *                 specialties:
+ *                   type: array
+ *                   items:
+ *                     type: integer
+ *                     example: 1
+ *                 address:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       street_address:
+ *                         type: string
+ *                         example: "Av. Siempre Viva 123"
+ *                       city:
+ *                         type: string
+ *                         example: "Springfield"
+ *                       state:
+ *                         type: string
+ *                         example: "Illinois"
+ *                       postal_code:
+ *                         type: string
+ *                         example: "62701"
+ *                       country:
+ *                         type: string
+ *                         example: "USA"
+ *                 image_urls:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "http://example.com/doctor-image1.jpg"
  *       400:
  *         description: Datos incorrectos o incompletos
  *       500:
  *         description: Error al crear el doctor
  */
+
 router.post('/', async (req, res) => {
   const { first_name, last_name, phone_number, availability, specialties, address, image_url } = req.body;
 
   // Verificación básica de los datos
-  if (!first_name || !last_name || !phone_number || !availability || !specialties || !address || address.length === 0) {
+  if (!first_name || !last_name || !phone_number || availability === undefined || !specialties || !address || address.length === 0) {
     return res.status(400).json({ mensaje: 'Faltan datos necesarios para crear el doctor o las direcciones.' });
   }
 
@@ -304,8 +385,18 @@ router.post('/', async (req, res) => {
       );
     }
 
-    // Insertamos la imagen del doctor si existe
-    if (image_url) {
+    // Insertamos las imágenes del doctor si existen
+    if (image_url && Array.isArray(image_url)) {
+      // Si se recibe un arreglo de imágenes, las insertamos todas
+      for (let url of image_url) {
+        await db.none(
+          `INSERT INTO doctor_images(doctor_id, image_url)
+           VALUES($1, $2)`,
+          [doctor_id, url]
+        );
+      }
+    } else if (image_url) {
+      // Si solo se recibe una imagen, la insertamos directamente
       await db.none(
         `INSERT INTO doctor_images(doctor_id, image_url)
          VALUES($1, $2)`,
@@ -322,7 +413,7 @@ router.post('/', async (req, res) => {
       availability,
       specialties,
       address,
-      image_url
+      image_urls: Array.isArray(image_url) ? image_url : [image_url]  // Aseguramos que siempre sea un arreglo
     });
 
   } catch (error) {
@@ -331,7 +422,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-  
+
+ // Metodo PUT 
 /**
  * @swagger
  * /api/doctors/{doctor_id}:
@@ -339,7 +431,7 @@ router.post('/', async (req, res) => {
  *     tags:
  *       - Doctores  # Agrupamos esta ruta bajo "Doctores"
  *     summary: Actualiza un doctor por su ID
- *     description: Actualiza los detalles de un doctor, sus especialidades, direcciones e imagen.
+ *     description: Actualiza los detalles de un doctor, sus especialidades, direcciones e imágenes.
  *     parameters:
  *       - in: path
  *         name: doctor_id
@@ -392,11 +484,63 @@ router.post('/', async (req, res) => {
  *                       type: string
  *                       example: "USA"
  *               image_url:
- *                 type: string
- *                 example: "http://example.com/doctor-image.jpg"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   example: "http://example.com/doctor-image1.jpg"  # URL de la imagen
  *     responses:
  *       200:
  *         description: Doctor actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 doctor_id:
+ *                   type: integer
+ *                   example: 1
+ *                 first_name:
+ *                   type: string
+ *                   example: "Juan"
+ *                 last_name:
+ *                   type: string
+ *                   example: "Pérez"
+ *                 phone_number:
+ *                   type: string
+ *                   example: "5551234567"
+ *                 availability:
+ *                   type: boolean
+ *                   example: true
+ *                 specialties:
+ *                   type: array
+ *                   items:
+ *                     type: integer
+ *                     example: 1
+ *                 address:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       street_address:
+ *                         type: string
+ *                         example: "Av. Siempre Viva 123"
+ *                       city:
+ *                         type: string
+ *                         example: "Springfield"
+ *                       state:
+ *                         type: string
+ *                         example: "Illinois"
+ *                       postal_code:
+ *                         type: string
+ *                         example: "62701"
+ *                       country:
+ *                         type: string
+ *                         example: "USA"
+ *                 image_urls:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "http://example.com/doctor-image1.jpg"
  *       400:
  *         description: Datos incorrectos o incompletos
  *       404:
@@ -404,6 +548,7 @@ router.post('/', async (req, res) => {
  *       500:
  *         description: Error al actualizar el doctor
  */
+
 router.put('/:doctor_id', async (req, res) => {
   const { doctor_id } = req.params;
   const { first_name, last_name, phone_number, availability, specialties, address, image_url } = req.body;
@@ -461,10 +606,21 @@ router.put('/:doctor_id', async (req, res) => {
     }
 
     // Si se proporciona una nueva URL de imagen, actualizamos la tabla doctor_images
-    if (image_url) {
+    if (image_url && Array.isArray(image_url)) {
+      // Si image_url es un arreglo, actualizamos o insertamos cada imagen
+      for (let url of image_url) {
+        await db.none(
+          `INSERT INTO doctor_images(doctor_id, image_url)
+           VALUES($1, $2)`,
+          [doctor_id, url]
+        );
+      }
+    } else if (image_url) {
+      // Si solo se recibe una URL de imagen, la insertamos directamente
       await db.none(
-        `UPDATE doctor_images SET image_url = $1 WHERE doctor_id = $2`,
-        [image_url, doctor_id]
+        `INSERT INTO doctor_images(doctor_id, image_url)
+         VALUES($1, $2)`,
+        [doctor_id, image_url]
       );
     }
 
@@ -477,7 +633,7 @@ router.put('/:doctor_id', async (req, res) => {
       availability,
       specialties,
       address,
-      image_url
+      image_urls: Array.isArray(image_url) ? image_url : [image_url]  // Aseguramos que siempre sea un arreglo
     });
 
   } catch (error) {
@@ -485,6 +641,7 @@ router.put('/:doctor_id', async (req, res) => {
     res.status(500).json({ mensaje: 'Error al actualizar el doctor' });
   }
 });
+
 
 
  /**
@@ -551,14 +708,15 @@ router.delete('/:doctor_id', async (req, res) => {
   }
 });
 
- /**
+// Metodo POST Filter by speciality 
+/**
  * @swagger
  * /api/doctors/filter:
  *   post:
  *     tags:
- *       - Doctores
- *     summary: Filtra doctores por especialidad
- *     description: Retorna una lista de doctores que están asociados con una especialidad específica.
+ *       - Doctores  # Agrupamos esta ruta bajo "Doctores"
+ *     summary: Filtra doctores por especialidad y obtiene las imágenes asociadas
+ *     description: Filtra los doctores por una especialidad específica y devuelve los detalles del doctor junto con sus imágenes.
  *     requestBody:
  *       required: true
  *       content:
@@ -568,11 +726,10 @@ router.delete('/:doctor_id', async (req, res) => {
  *             properties:
  *               specialty_id:
  *                 type: integer
- *                 description: El ID de la especialidad para filtrar los doctores.
- *                 example: 2  # Aquí puedes poner un ejemplo del specialty_id
+ *                 example: 2  # ID de la especialidad
  *     responses:
  *       200:
- *         description: Lista de doctores que tienen asignada la especialidad
+ *         description: Lista de doctores con especialidad e imágenes asociadas
  *         content:
  *           application/json:
  *             schema:
@@ -595,43 +752,56 @@ router.delete('/:doctor_id', async (req, res) => {
  *                   availability:
  *                     type: boolean
  *                     example: true
- *       400:
- *         description: El parámetro `specialty_id` es requerido y debe ser un número válido.
+ *                   image_urls:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                       example: "http://example.com/doctor-image1.jpg"
  *       404:
- *         description: No se encontraron doctores para esta especialidad.
+ *         description: No se encontraron doctores para la especialidad indicada
  *       500:
- *         description: Error al realizar el filtro de doctores.
+ *         description: Error al realizar el filtro de doctores
  */
 
+router.post('/filter', async (req, res) => {
+  const { specialty_id } = req.body;
   
-  router.post('/filter', async (req, res) => {
-    const { specialty_id } = req.body;
-    
-    if (!specialty_id || isNaN(specialty_id)) {
-      return res.status(400).json({ mensaje: 'El parámetro specialty_id es requerido y debe ser un número válido.' });
+  if (!specialty_id || isNaN(specialty_id)) {
+    return res.status(400).json({ mensaje: 'El parámetro specialty_id es requerido y debe ser un número válido.' });
+  }
+
+  try {
+    // Consultar los doctores que están asociados con la especialidad
+    const doctors = await db.any(
+      `SELECT 
+        d.doctor_id, 
+        d.first_name, 
+        d.last_name, 
+        d.phone_number, 
+        d.availability,
+        array_agg(DISTINCT di.image_url) AS image_urls  -- Traemos todas las imágenes del doctor
+       FROM doctors d
+       JOIN doctors_specialties ds ON d.doctor_id = ds.doctor_id
+       LEFT JOIN doctor_images di ON d.doctor_id = di.doctor_id  -- Unimos la tabla de imágenes
+       WHERE ds.specialty_id = $1
+       GROUP BY d.doctor_id`,  // Agrupamos por doctor para evitar duplicados
+      [specialty_id]
+    );
+
+    if (doctors.length === 0) {
+      return res.status(404).json({ mensaje: 'No se encontraron doctores para esta especialidad.' });
     }
-  
-    try {
-      // Consultar los doctores que están asociados con la especialidad
-      const doctors = await db.any(
-        `SELECT d.doctor_id, d.first_name, d.last_name, d.phone_number, d.availability
-         FROM doctors d
-         JOIN doctors_specialties ds ON d.doctor_id = ds.doctor_id
-         WHERE ds.specialty_id = $1`,
-        [specialty_id]
-      );
-  
-      if (doctors.length === 0) {
-        return res.status(404).json({ mensaje: 'No se encontraron doctores para esta especialidad.' });
-      }
-  
-      res.status(200).json(doctors);
-  
-    } catch (error) {
-      console.error('Error al filtrar los doctores:', error);
-      res.status(500).json({ mensaje: 'Error al realizar el filtro de doctores' });
-    }
-  });
+
+    // Devolvemos la lista de doctores con sus especialidades e imágenes
+    res.status(200).json(doctors);
+
+  } catch (error) {
+    console.error('Error al filtrar los doctores:', error);
+    res.status(500).json({ mensaje: 'Error al realizar el filtro de doctores' });
+  }
+});
+
+
   
   
   
