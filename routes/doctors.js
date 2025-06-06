@@ -50,8 +50,21 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const doctors = await db.any('SELECT * FROM doctors');
-    res.json(doctors);
+    const doctors = await db.any(`
+      SELECT 
+        d.doctor_id, 
+        d.first_name, 
+        d.last_name, 
+        d.phone_number, 
+        d.availability, 
+        array_agg(s.name) AS specialty_names  
+      FROM doctors d
+      LEFT JOIN doctors_specialties ds ON d.doctor_id = ds.doctor_id
+      LEFT JOIN specialties s ON ds.specialty_id = s.specialty_id
+      GROUP BY d.doctor_id  
+    `);
+
+    res.json(doctors);  // Devolvemos la lista de doctores con sus especialidades
   } catch (error) {
     console.error('Error al obtener los doctores:', error);
     res.status(500).json({ mensaje: 'Error al obtener los doctores' });
