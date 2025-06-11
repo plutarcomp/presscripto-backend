@@ -1,5 +1,5 @@
-const express = require('express');
-const db = require('../db');  // Importamos la conexión a la base de datos
+const express = require("express");
+const db = require("../db"); // Importamos la conexión a la base de datos
 const router = express.Router();
 
 // Metodo GET ALL
@@ -58,7 +58,7 @@ const router = express.Router();
  *         description: Error al obtener los doctores
  */
 
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     // Realizamos la consulta SQL para obtener los doctores con sus especialidades y las imágenes asociadas
     const doctors = await db.any(`
@@ -68,20 +68,26 @@ router.get('/', async (req, res) => {
         d.last_name, 
         d.phone_number, 
         d.availability, 
-        array_agg(DISTINCT s.name) AS specialty_names,  -- Agrupamos las especialidades eliminando duplicados
-        array_agg(DISTINCT di.image_url) AS image_urls  -- Agrupamos las imágenes eliminando duplicados
-      FROM doctors d
-      LEFT JOIN doctors_specialties ds ON d.doctor_id = ds.doctor_id
-      LEFT JOIN specialties s ON ds.specialty_id = s.specialty_id
-      LEFT JOIN doctor_images di ON d.doctor_id = di.doctor_id  -- Unimos la tabla de imágenes
-      GROUP BY d.doctor_id  -- Agrupamos por doctor
-      ORDER BY d.doctor_id ASC
+        array_agg(DISTINCT s.name) AS Specialties,
+        array_agg(DISTINCT i.image_url) AS Image
+      FROM
+        doctors_specialties ds
+      JOIN
+        doctor_profile d ON ds.doctor_id = d.doctor_id
+      JOIN
+        specialties s ON ds.specialty_id = s.specialty_id
+      JOIN
+        doctor_images i ON d.doctor_id = i.doctor_id
+      GROUP BY 
+        d.doctor_id
+      ORDER BY 
+        d.doctor_id ASC
     `);
 
-    res.json(doctors);  // Devolvemos la lista de doctores con sus especialidades e imágenes
+    res.json(doctors); // Devolvemos la lista de doctores con sus especialidades e imágenes
   } catch (error) {
-    console.error('Error al obtener los doctores:', error);
-    res.status(500).json({ mensaje: 'Error al obtener los doctores' });
+    console.error("Error al obtener los doctores:", error);
+    res.status(500).json({ mensaje: "Error al obtener los doctores" });
   }
 });
 
@@ -166,7 +172,7 @@ router.get('/', async (req, res) => {
  *       500:
  *         description: Error al obtener el doctor
  */
-router.get('/:doctor_id', async (req, res) => {
+router.get("/:doctor_id", async (req, res) => {
   const { doctor_id } = req.params;
 
   try {
@@ -177,7 +183,7 @@ router.get('/:doctor_id', async (req, res) => {
     );
 
     if (!doctor) {
-      return res.status(404).json({ mensaje: 'Doctor no encontrado' });
+      return res.status(404).json({ mensaje: "Doctor no encontrado" });
     }
 
     // Obtener las especialidades asociadas al doctor
@@ -213,16 +219,17 @@ router.get('/:doctor_id', async (req, res) => {
       availability: doctor.availability,
       specialties,
       addresses,
-      image_urls: images.map(image => image.image_url) // Devolvemos todas las imágenes como un arreglo de URLs
+      image_urls: images.map((image) => image.image_url), // Devolvemos todas las imágenes como un arreglo de URLs
     });
-
   } catch (error) {
-    console.error('Error al obtener los detalles del doctor:', error);
-    res.status(500).json({ mensaje: 'Error al obtener los detalles del doctor' });
+    console.error("Error al obtener los detalles del doctor:", error);
+    res
+      .status(500)
+      .json({ mensaje: "Error al obtener los detalles del doctor" });
   }
 });
 
-// Metodo POST 
+// Metodo POST
 /**
  * @swagger
  * /api/doctors:
@@ -339,12 +346,31 @@ router.get('/:doctor_id', async (req, res) => {
  *         description: Error al crear el doctor
  */
 
-router.post('/', async (req, res) => {
-  const { first_name, last_name, phone_number, availability, specialties, address, image_url } = req.body;
+router.post("/", async (req, res) => {
+  const {
+    first_name,
+    last_name,
+    phone_number,
+    availability,
+    specialties,
+    address,
+    image_url,
+  } = req.body;
 
   // Verificación básica de los datos
-  if (!first_name || !last_name || !phone_number || availability === undefined || !specialties || !address || address.length === 0) {
-    return res.status(400).json({ mensaje: 'Faltan datos necesarios para crear el doctor o las direcciones.' });
+  if (
+    !first_name ||
+    !last_name ||
+    !phone_number ||
+    availability === undefined ||
+    !specialties ||
+    !address ||
+    address.length === 0
+  ) {
+    return res.status(400).json({
+      mensaje:
+        "Faltan datos necesarios para crear el doctor o las direcciones.",
+    });
   }
 
   try {
@@ -372,7 +398,13 @@ router.post('/', async (req, res) => {
       const addressResult = await db.one(
         `INSERT INTO addresses(street_address, city, state, postal_code, country)
          VALUES($1, $2, $3, $4, $5) RETURNING address_id`,
-        [addr.street_address, addr.city, addr.state, addr.postal_code, addr.country]
+        [
+          addr.street_address,
+          addr.city,
+          addr.state,
+          addr.postal_code,
+          addr.country,
+        ]
       );
 
       const address_id = addressResult.address_id;
@@ -413,17 +445,15 @@ router.post('/', async (req, res) => {
       availability,
       specialties,
       address,
-      image_urls: Array.isArray(image_url) ? image_url : [image_url]  // Aseguramos que siempre sea un arreglo
+      image_urls: Array.isArray(image_url) ? image_url : [image_url], // Aseguramos que siempre sea un arreglo
     });
-
   } catch (error) {
-    console.error('Error al crear el doctor:', error);
-    res.status(500).json({ mensaje: 'Error al crear el doctor' });
+    console.error("Error al crear el doctor:", error);
+    res.status(500).json({ mensaje: "Error al crear el doctor" });
   }
 });
 
-
- // Metodo PUT 
+// Metodo PUT
 /**
  * @swagger
  * /api/doctors/{doctor_id}:
@@ -549,21 +579,42 @@ router.post('/', async (req, res) => {
  *         description: Error al actualizar el doctor
  */
 
-router.put('/:doctor_id', async (req, res) => {
+router.put("/:doctor_id", async (req, res) => {
   const { doctor_id } = req.params;
-  const { first_name, last_name, phone_number, availability, specialties, address, image_url } = req.body;
+  const {
+    first_name,
+    last_name,
+    phone_number,
+    availability,
+    specialties,
+    address,
+    image_url,
+  } = req.body;
 
   // Verificación básica de los datos
-  if (!first_name || !last_name || !phone_number || !availability || !specialties || !address || address.length === 0) {
-    return res.status(400).json({ mensaje: 'Faltan datos para actualizar el doctor o las direcciones.' });
+  if (
+    !first_name ||
+    !last_name ||
+    !phone_number ||
+    !availability ||
+    !specialties ||
+    !address ||
+    address.length === 0
+  ) {
+    return res.status(400).json({
+      mensaje: "Faltan datos para actualizar el doctor o las direcciones.",
+    });
   }
 
   try {
     // Verificamos si el doctor existe
-    const doctor = await db.oneOrNone('SELECT * FROM doctors WHERE doctor_id = $1', [doctor_id]);
+    const doctor = await db.oneOrNone(
+      "SELECT * FROM doctors WHERE doctor_id = $1",
+      [doctor_id]
+    );
 
     if (!doctor) {
-      return res.status(404).json({ mensaje: 'Doctor no encontrado' });
+      return res.status(404).json({ mensaje: "Doctor no encontrado" });
     }
 
     // Actualizamos los datos del doctor en la tabla doctors
@@ -574,7 +625,9 @@ router.put('/:doctor_id', async (req, res) => {
     );
 
     // Eliminar las especialidades existentes y luego agregar las nuevas en la tabla doctors_specialties
-    await db.none('DELETE FROM doctors_specialties WHERE doctor_id = $1', [doctor_id]);
+    await db.none("DELETE FROM doctors_specialties WHERE doctor_id = $1", [
+      doctor_id,
+    ]);
 
     for (let specialty_id of specialties) {
       await db.none(
@@ -585,14 +638,22 @@ router.put('/:doctor_id', async (req, res) => {
     }
 
     // Eliminar las direcciones existentes y luego agregar las nuevas en la tabla doctor_addresses
-    await db.none('DELETE FROM doctor_addresses WHERE doctor_id = $1', [doctor_id]);
+    await db.none("DELETE FROM doctor_addresses WHERE doctor_id = $1", [
+      doctor_id,
+    ]);
 
     for (let addr of address) {
       // Insertamos la nueva dirección en la tabla addresses
       const addressResult = await db.one(
         `INSERT INTO addresses(street_address, city, state, postal_code, country)
          VALUES($1, $2, $3, $4, $5) RETURNING address_id`,
-        [addr.street_address, addr.city, addr.state, addr.postal_code, addr.country]
+        [
+          addr.street_address,
+          addr.city,
+          addr.state,
+          addr.postal_code,
+          addr.country,
+        ]
       );
 
       const address_id = addressResult.address_id;
@@ -633,18 +694,15 @@ router.put('/:doctor_id', async (req, res) => {
       availability,
       specialties,
       address,
-      image_urls: Array.isArray(image_url) ? image_url : [image_url]  // Aseguramos que siempre sea un arreglo
+      image_urls: Array.isArray(image_url) ? image_url : [image_url], // Aseguramos que siempre sea un arreglo
     });
-
   } catch (error) {
-    console.error('Error al actualizar el doctor:', error);
-    res.status(500).json({ mensaje: 'Error al actualizar el doctor' });
+    console.error("Error al actualizar el doctor:", error);
+    res.status(500).json({ mensaje: "Error al actualizar el doctor" });
   }
 });
 
-
-
- /**
+/**
  * @swagger
  * /api/doctors/{doctor_id}:
  *   delete:
@@ -667,48 +725,63 @@ router.put('/:doctor_id', async (req, res) => {
  *       500:
  *         description: Error al eliminar el doctor y sus registros relacionados
  */
-router.delete('/:doctor_id', async (req, res) => {
+router.delete("/:doctor_id", async (req, res) => {
   const { doctor_id } = req.params;
 
   try {
     // Verificamos si el doctor existe
-    const doctor = await db.oneOrNone('SELECT * FROM doctors WHERE doctor_id = $1', [doctor_id]);
+    const doctor = await db.oneOrNone(
+      "SELECT * FROM doctors WHERE doctor_id = $1",
+      [doctor_id]
+    );
 
     if (!doctor) {
-      return res.status(404).json({ mensaje: 'Doctor no encontrado' });
+      return res.status(404).json({ mensaje: "Doctor no encontrado" });
     }
 
     // Eliminar especialidades del doctor en la tabla doctors_specialties
-    await db.none('DELETE FROM doctors_specialties WHERE doctor_id = $1', [doctor_id]);
+    await db.none("DELETE FROM doctors_specialties WHERE doctor_id = $1", [
+      doctor_id,
+    ]);
 
     // Eliminar direcciones del doctor en la tabla doctor_addresses
-    await db.none('DELETE FROM doctor_addresses WHERE doctor_id = $1', [doctor_id]);
+    await db.none("DELETE FROM doctor_addresses WHERE doctor_id = $1", [
+      doctor_id,
+    ]);
 
     // Eliminar direcciones asociadas del doctor en la tabla addresses si no son usadas por otro doctor
-    await db.none(`
+    await db.none(
+      `
       DELETE FROM addresses 
       WHERE address_id IN (
         SELECT address_id FROM doctor_addresses WHERE doctor_id = $1
       ) AND address_id NOT IN (
         SELECT address_id FROM doctor_addresses WHERE address_id = addresses.address_id
-      )`, [doctor_id]);
+      )`,
+      [doctor_id]
+    );
 
     // Eliminar imágenes asociadas al doctor en la tabla doctor_images
-    await db.none('DELETE FROM doctor_images WHERE doctor_id = $1', [doctor_id]);
+    await db.none("DELETE FROM doctor_images WHERE doctor_id = $1", [
+      doctor_id,
+    ]);
 
     // Finalmente, eliminar el doctor de la tabla doctors
-    await db.none('DELETE FROM doctors WHERE doctor_id = $1', [doctor_id]);
+    await db.none("DELETE FROM doctors WHERE doctor_id = $1", [doctor_id]);
 
     // Responder con mensaje de éxito
-    res.status(200).json({ mensaje: `Doctor con ID ${doctor_id} y sus registros relacionados han sido eliminados correctamente.` });
-
+    res.status(200).json({
+      mensaje: `Doctor con ID ${doctor_id} y sus registros relacionados han sido eliminados correctamente.`,
+    });
   } catch (error) {
-    console.error('Error al eliminar el doctor:', error);
-    res.status(500).json({ mensaje: 'Error al eliminar el doctor y sus registros relacionados' });
+    console.error("Error al eliminar el doctor:", error);
+    res.status(500).json({
+      mensaje: "Error al eliminar el doctor y sus registros relacionados",
+    });
   }
 });
 
-// Metodo POST Filter by speciality 
+// Metodo POST Filter by speciality
 /**
  * @swagger
  * /api/doctors/filter:
@@ -763,11 +836,14 @@ router.delete('/:doctor_id', async (req, res) => {
  *         description: Error al realizar el filtro de doctores
  */
 
-router.post('/filter', async (req, res) => {
+router.post("/filter", async (req, res) => {
   const { specialty_id } = req.body;
-  
+
   if (!specialty_id || isNaN(specialty_id)) {
-    return res.status(400).json({ mensaje: 'El parámetro specialty_id es requerido y debe ser un número válido.' });
+    return res.status(400).json({
+      mensaje:
+        "El parámetro specialty_id es requerido y debe ser un número válido.",
+    });
   }
 
   try {
@@ -784,26 +860,24 @@ router.post('/filter', async (req, res) => {
        JOIN doctors_specialties ds ON d.doctor_id = ds.doctor_id
        LEFT JOIN doctor_images di ON d.doctor_id = di.doctor_id  -- Unimos la tabla de imágenes
        WHERE ds.specialty_id = $1
-       GROUP BY d.doctor_id`,  // Agrupamos por doctor para evitar duplicados
+       GROUP BY d.doctor_id`, // Agrupamos por doctor para evitar duplicados
       [specialty_id]
     );
 
     if (doctors.length === 0) {
-      return res.status(404).json({ mensaje: 'No se encontraron doctores para esta especialidad.' });
+      return res.status(404).json({
+        mensaje: "No se encontraron doctores para esta especialidad.",
+      });
     }
 
     // Devolvemos la lista de doctores con sus especialidades e imágenes
     res.status(200).json(doctors);
-
   } catch (error) {
-    console.error('Error al filtrar los doctores:', error);
-    res.status(500).json({ mensaje: 'Error al realizar el filtro de doctores' });
+    console.error("Error al filtrar los doctores:", error);
+    res
+      .status(500)
+      .json({ mensaje: "Error al realizar el filtro de doctores" });
   }
 });
 
-
-  
-  
-  
-  
-  module.exports = router;
+module.exports = router;
