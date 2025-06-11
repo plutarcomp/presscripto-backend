@@ -4,7 +4,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerDocs = require('./swaggerDocs');  
 const doctorsRoutes = require('./routes/doctors'); 
 const specialtiesRoutes = require('./routes/specialties');
-
+const authRoutes = require('./routes/authUsers'); 
 
 
 const app = express();
@@ -22,9 +22,13 @@ app.use(express.json());
 
 app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+// Rutas de autenticación
+app.use('/api/auth', authRoutes);
+
 // Rutas para la api
 app.use('/api/doctors', doctorsRoutes);
 app.use('/api/specialties', specialtiesRoutes);
+
 
 // Ruta health check
 app.get('/health', (req, res) => {
