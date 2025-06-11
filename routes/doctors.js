@@ -178,7 +178,7 @@ router.get("/:doctor_id", async (req, res) => {
   try {
     // Obtener los datos del doctor
     const doctor = await db.oneOrNone(
-      `SELECT * FROM doctors WHERE doctor_id = $1`,
+      `SELECT * FROM doctor_profile WHERE doctor_id = $1`,
       [doctor_id]
     );
 
@@ -376,7 +376,7 @@ router.post("/", async (req, res) => {
   try {
     // Insertamos el doctor en la tabla doctors
     const result = await db.one(
-      `INSERT INTO doctors(first_name, last_name, phone_number, availability)
+      `INSERT INTO doctor_profile(first_name, last_name, phone_number, availability)
        VALUES($1, $2, $3, $4) RETURNING doctor_id`,
       [first_name, last_name, phone_number, availability]
     );
@@ -609,7 +609,7 @@ router.put("/:doctor_id", async (req, res) => {
   try {
     // Verificamos si el doctor existe
     const doctor = await db.oneOrNone(
-      "SELECT * FROM doctors WHERE doctor_id = $1",
+      "SELECT * FROM doctor_profile WHERE doctor_id = $1",
       [doctor_id]
     );
 
@@ -619,7 +619,7 @@ router.put("/:doctor_id", async (req, res) => {
 
     // Actualizamos los datos del doctor en la tabla doctors
     await db.none(
-      `UPDATE doctors SET first_name = $1, last_name = $2, phone_number = $3, availability = $4
+      `UPDATE doctor_profile SET first_name = $1, last_name = $2, phone_number = $3, availability = $4
        WHERE doctor_id = $5`,
       [first_name, last_name, phone_number, availability, doctor_id]
     );
@@ -731,7 +731,7 @@ router.delete("/:doctor_id", async (req, res) => {
   try {
     // Verificamos si el doctor existe
     const doctor = await db.oneOrNone(
-      "SELECT * FROM doctors WHERE doctor_id = $1",
+      "SELECT * FROM doctor_profile WHERE doctor_id = $1",
       [doctor_id]
     );
 
@@ -767,7 +767,7 @@ router.delete("/:doctor_id", async (req, res) => {
     ]);
 
     // Finalmente, eliminar el doctor de la tabla doctors
-    await db.none("DELETE FROM doctors WHERE doctor_id = $1", [doctor_id]);
+    await db.none("DELETE FROM doctor_profile WHERE doctor_id = $1", [doctor_id]);
 
     // Responder con mensaje de éxito
     res.status(200).json({
@@ -856,7 +856,7 @@ router.post("/filter", async (req, res) => {
         d.phone_number, 
         d.availability,
         array_agg(DISTINCT di.image_url) AS image_urls  -- Traemos todas las imágenes del doctor
-       FROM doctors d
+       FROM doctor_profile d
        JOIN doctors_specialties ds ON d.doctor_id = ds.doctor_id
        LEFT JOIN doctor_images di ON d.doctor_id = di.doctor_id  -- Unimos la tabla de imágenes
        WHERE ds.specialty_id = $1
