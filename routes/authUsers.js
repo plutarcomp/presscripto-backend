@@ -6,15 +6,14 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 
 
-
 /**
  * @swagger
  * /api/auth/register:
  *   post:
  *     tags:
  *       - Usuarios  # Agrupamos esta ruta bajo "Usuarios"
- *     summary: Registra un nuevo usuario
- *     description: Registra un nuevo usuario, valida la información, hashea la contraseña y genera un JWT.
+ *     summary: Registra un nuevo usuario y genera un JWT
+ *     description: Registra un nuevo usuario en la base de datos, valida la información, hashea la contraseña y genera un JWT.
  *     requestBody:
  *       required: true
  *       content:
@@ -35,9 +34,9 @@ const db = require('../db');
  *               last_name:
  *                 type: string
  *                 example: "Pérez"
- *               role:
- *                 type: string
- *                 example: "user"
+ *               role_id:
+ *                 type: integer
+ *                 example: 1  # El ID del rol (ej. 1 para 'user', 2 para 'admin', etc.)
  *     responses:
  *       201:
  *         description: Usuario registrado correctamente
@@ -67,24 +66,26 @@ const db = require('../db');
  *                     last_name:
  *                       type: string
  *                       example: "Pérez"
- *                     role:
- *                       type: string
- *                       example: "user"
+ *                     role_id:
+ *                       type: integer
+ *                       example: 1  # El ID del rol
  *       400:
  *         description: Datos incorrectos o incompletos
  *       500:
  *         description: Error al registrar el usuario
  */
 
+
 // Ruta de registro de usuario
 router.post('/register', async (req, res) => {
-  const { email, password, first_name, last_name, role } = req.body;
+  const { email, password, first_name, last_name, role_id } = req.body; 
 
-  // Validación de los datos básicos
-  if (!email || !password || !first_name || !last_name || !role) {
+  // Verificación básica de los datos
+  if (!email || !password || !first_name || !last_name || !role_id) {
     return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
   }
 
+  // Verificar si el email ya está registrado
   try {
     const existingUser = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
     if (existingUser) {
@@ -92,32 +93,32 @@ router.post('/register', async (req, res) => {
     }
 
     // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);  // Sal de 10 rondas de hash
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insertar el nuevo usuario en la base de datos
     const newUser = await db.one(
-      `INSERT INTO users (email, password, first_name, last_name, role)
-       VALUES ($1, $2, $3, $4, $5) RETURNING user_id, email, first_name, last_name, role`,
-      [email, hashedPassword, first_name, last_name, role]
+      `INSERT INTO users (email, password, first_name, last_name, role_id)  
+       VALUES ($1, $2, $3, $4, $5) RETURNING user_id, email, first_name, last_name, role_id`,  
+      [email, hashedPassword, first_name, last_name, role_id]  
     );
 
-    // Generar JWT usando la clave secreta desde el archivo .env
+    // Generar JWT
     const token = jwt.sign(
-      { userId: newUser.user_id, email: newUser.email, role: newUser.role },
-      process.env.JWT_SECRET,  // Usamos la clave secreta desde el .env
+      { userId: newUser.user_id, email: newUser.email, role_id: newUser.role_id },  
+      process.env.JWT_SECRET,  // Usamos la clave secreta del .env
       { expiresIn: '1h' }  // El token expirará en 1 hora
     );
 
     // Devolver la respuesta con el token
     res.status(201).json({
       message: 'Usuario registrado correctamente',
-      token,  
+      token,
       user: {
         user_id: newUser.user_id,
         email: newUser.email,
         first_name: newUser.first_name,
         last_name: newUser.last_name,
-        role: newUser.role
+        role_id: newUser.role_id  
       }
     });
   } catch (error) {
