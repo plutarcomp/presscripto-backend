@@ -5,15 +5,14 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 
-
 /**
  * @swagger
  * /api/auth/register:
  *   post:
  *     tags:
  *       - Usuarios  # Agrupamos esta ruta bajo "Usuarios"
- *     summary: Registra un nuevo usuario y genera un JWT
- *     description: Registra un nuevo usuario en la base de datos, valida la información, hashea la contraseña y genera un JWT.
+ *     summary: Registra un nuevo usuario
+ *     description: Registra un nuevo usuario en la base de datos, valida la información y hashea la contraseña.
  *     requestBody:
  *       required: true
  *       content:
@@ -37,6 +36,9 @@ const db = require('../db');
  *               role_id:
  *                 type: integer
  *                 example: 1  # El ID del rol (ej. 1 para 'user', 2 para 'admin', etc.)
+ *               phone_number:
+ *                 type: string
+ *                 example: "5551234567"  # Número de teléfono del usuario
  *     responses:
  *       201:
  *         description: Usuario registrado correctamente
@@ -48,6 +50,111 @@ const db = require('../db');
  *                 message:
  *                   type: string
  *                   example: "Usuario registrado correctamente"
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: integer
+ *                       example: 1
+ *                     email:
+ *                       type: string
+ *                       example: "juan.perez@example.com"
+ *                     first_name:
+ *                       type: string
+ *                       example: "Juan"
+ *                     last_name:
+ *                       type: string
+ *                       example: "Pérez"
+ *                     role_id:
+ *                       type: integer
+ *                       example: 1  # El ID del rol
+ *                     phone_number:
+ *                       type: string
+ *                       example: "5551234567"  # Número de teléfono del usuario
+ *       400:
+ *         description: Datos incorrectos o incompletos
+ *       500:
+ *         description: Error al registrar el usuario
+ */
+
+
+// POST - Registro de usuario
+router.post('/register', async (req, res) => {
+  const { email, password, first_name, last_name, role_id, phone_number } = req.body; 
+
+  // Verificación básica de los datos
+  if (!email || !password || !first_name || !last_name || !role_id || !phone_number) {
+    return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
+  }
+
+  // Verificar si el email ya está registrado
+  try {
+    const existingUser = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
+    if (existingUser) {
+      return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado' });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insertar el nuevo usuario en la base de datos
+    const newUser = await db.one(
+      `INSERT INTO users (email, password, first_name, last_name, role_id, phone_number)  
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id, email, first_name, last_name, role_id, phone_number`,  
+      [email, hashedPassword, first_name, last_name, role_id, phone_number]  
+    );
+
+    // Devolver la respuesta con el token
+    res.status(201).json({
+      message: 'Usuario registrado correctamente',
+      user: {
+        user_id: newUser.user_id,
+        email: newUser.email,
+        first_name: newUser.first_name,
+        last_name: newUser.last_name,
+        role_id: newUser.role_id, 
+        phone_number: newUser.phone_number  
+      }
+    });
+  } catch (error) {
+    console.error('Error al registrar el usuario:', error);
+    res.status(500).json({ mensaje: 'Error al registrar el usuario' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     tags:
+ *       - Usuarios  # Agrupamos esta ruta bajo "Usuarios"
+ *     summary: Inicia sesión con email y contraseña y genera un JWT
+ *     description: Valida el email y la contraseña del usuario y genera un JWT en caso de éxito.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "juan.perez@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "password123"
+ *     responses:
+ *       200:
+ *         description: Login exitoso y token generado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Login exitoso"
  *                 token:
  *                   type: string
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoiam9hbi5wZXJleiJ9.2e0g8rkl5kakl5g1233"
@@ -69,61 +176,65 @@ const db = require('../db');
  *                     role_id:
  *                       type: integer
  *                       example: 1  # El ID del rol
+ *                    phone_number:
+ *                      type: string
+ *                      example: "5551234567"  
  *       400:
- *         description: Datos incorrectos o incompletos
+ *         description: Credenciales incorrectas
+ *       404:
+ *         description: Usuario no encontrado
  *       500:
- *         description: Error al registrar el usuario
+ *         description: Error al realizar el login
  */
 
 
-// Ruta de registro de usuario
-router.post('/register', async (req, res) => {
-  const { email, password, first_name, last_name, role_id } = req.body; 
+// POST - Login
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;  // Ahora obtenemos email y password desde el cuerpo (body)
 
-  // Verificación básica de los datos
-  if (!email || !password || !first_name || !last_name || !role_id) {
-    return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
+  if (!email || !password) {
+    return res.status(400).json({ mensaje: 'Email y contraseña son requeridos.' });
   }
 
-  // Verificar si el email ya está registrado
   try {
-    const existingUser = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
-    if (existingUser) {
-      return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado' });
+    // Verificar si el email existe
+    const user = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
+
+    if (!user) {
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Verificar que la contraseña coincida con la almacenada (usando bcrypt)
+    const isMatch = await bcrypt.compare(password, user.password);
 
-    // Insertar el nuevo usuario en la base de datos
-    const newUser = await db.one(
-      `INSERT INTO users (email, password, first_name, last_name, role_id)  
-       VALUES ($1, $2, $3, $4, $5) RETURNING user_id, email, first_name, last_name, role_id`,  
-      [email, hashedPassword, first_name, last_name, role_id]  
-    );
+    if (!isMatch) {
+      return res.status(400).json({ mensaje: 'Contraseña incorrecta' });
+    }
 
     // Generar JWT
     const token = jwt.sign(
-      { userId: newUser.user_id, email: newUser.email, role_id: newUser.role_id },  
-      process.env.JWT_SECRET,  // Usamos la clave secreta del .env
-      { expiresIn: '1h' }  // El token expirará en 1 hora
+      { userId: user.user_id, email: user.email, role_id: user.role_id },
+      process.env.JWT_SECRET,  
+      { expiresIn: process.env.EXP_TOKEN }  
     );
 
     // Devolver la respuesta con el token
-    res.status(201).json({
-      message: 'Usuario registrado correctamente',
+    res.status(200).json({
+      message: 'Login exitoso',
       token,
       user: {
-        user_id: newUser.user_id,
-        email: newUser.email,
-        first_name: newUser.first_name,
-        last_name: newUser.last_name,
-        role_id: newUser.role_id  
+        user_id: user.user_id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        role_id: user.role_id,
+        phone_number: user.phone_number  
       }
     });
+
   } catch (error) {
-    console.error('Error al registrar el usuario:', error);
-    res.status(500).json({ mensaje: 'Error al registrar el usuario' });
+    console.error('Error al realizar el login:', error);
+    res.status(500).json({ mensaje: 'Error al realizar el login' });
   }
 });
 

@@ -1,6 +1,6 @@
 {
   "name": "presscripto-backend",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "nodemon": "^3.1.10",
     "pg-promise": "^11.13.0",
+    "semver": "^7.7.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   }

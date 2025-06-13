@@ -10,6 +10,12 @@ const authRoutes = require('./routes/authUsers');
 const app = express();
 const port = 3000;
 
+const path = require('path'); 
+// Importamos la función de actualización de versión
+const updateVersion = require(path.join(__dirname, 'utils', 'updateVersion'));
+
+// Ejecutamos la función de actualización de versión
+updateVersion();  // Asegúrate de que esta línea esté correctamente colocada
 
 app.use(cors({
   origin: '*', 
@@ -24,6 +30,7 @@ app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
+app.use('/api/login', authRoutes);  
 
 // Rutas para la api
 app.use('/api/doctors', doctorsRoutes);
