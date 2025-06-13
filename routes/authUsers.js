@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 
 
-
 /**
  * @swagger
  * /api/auth/register:
@@ -35,7 +34,7 @@ const db = require('../db');
  *               last_name:
  *                 type: string
  *                 example: "Pérez"
- *               role_Id:
+ *               role_id:
  *                 type: integer
  *                 example: 1  # El ID del rol (ej. 1 para 'user', 2 para 'admin', etc.)
  *     responses:
@@ -67,7 +66,7 @@ const db = require('../db');
  *                     last_name:
  *                       type: string
  *                       example: "Pérez"
- *                     roleId:
+ *                     role_id:
  *                       type: integer
  *                       example: 1  # El ID del rol
  *       400:
@@ -77,13 +76,12 @@ const db = require('../db');
  */
 
 
-
 // Ruta de registro de usuario
 router.post('/register', async (req, res) => {
-  const { email, password, first_name, last_name, roleId } = req.body;
+  const { email, password, first_name, last_name, role_id } = req.body; 
 
   // Verificación básica de los datos
-  if (!email || !password || !first_name || !last_name || !roleId) {
+  if (!email || !password || !first_name || !last_name || !role_id) {
     return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
   }
 
@@ -99,14 +97,14 @@ router.post('/register', async (req, res) => {
 
     // Insertar el nuevo usuario en la base de datos
     const newUser = await db.one(
-      `INSERT INTO users (email, password, first_name, last_name, role_Id)
-       VALUES ($1, $2, $3, $4, $5) RETURNING user_id, email, first_name, last_name, role_Id`,
-      [email, hashedPassword, first_name, last_name, role_Id]
+      `INSERT INTO users (email, password, first_name, last_name, role_id)  
+       VALUES ($1, $2, $3, $4, $5) RETURNING user_id, email, first_name, last_name, role_id`,  
+      [email, hashedPassword, first_name, last_name, role_id]  
     );
 
     // Generar JWT
     const token = jwt.sign(
-      { userId: newUser.user_id, email: newUser.email, role_Id: newUser.role_Id },
+      { userId: newUser.user_id, email: newUser.email, role_id: newUser.role_id },  
       process.env.JWT_SECRET,  // Usamos la clave secreta del .env
       { expiresIn: '1h' }  // El token expirará en 1 hora
     );
@@ -120,7 +118,7 @@ router.post('/register', async (req, res) => {
         email: newUser.email,
         first_name: newUser.first_name,
         last_name: newUser.last_name,
-        role_Id: newUser.role_Id  
+        role_id: newUser.role_id  
       }
     });
   } catch (error) {
@@ -128,6 +126,5 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ mensaje: 'Error al registrar el usuario' });
   }
 });
-
 
 module.exports = router;
