@@ -176,9 +176,9 @@ router.post('/register', async (req, res) => {
  *                     role_id:
  *                       type: integer
  *                       example: 1  # El ID del rol
- *                    phone_number:
- *                      type: string
- *                      example: "5551234567"  
+ *                     phone_number:
+ *                       type: string
+ *                       example: "5551234567"  
  *       400:
  *         description: Credenciales incorrectas
  *       404:
