@@ -35,7 +35,7 @@ const db = require('../db');
  *               last_name:
  *                 type: string
  *                 example: "Pérez"
- *               roleId:
+ *               role_Id:
  *                 type: integer
  *                 example: 1  # El ID del rol (ej. 1 para 'user', 2 para 'admin', etc.)
  *     responses:
@@ -99,14 +99,14 @@ router.post('/register', async (req, res) => {
 
     // Insertar el nuevo usuario en la base de datos
     const newUser = await db.one(
-      `INSERT INTO users (email, password, first_name, last_name, roleId)
-       VALUES ($1, $2, $3, $4, $5) RETURNING user_id, email, first_name, last_name, roleId`,
-      [email, hashedPassword, first_name, last_name, roleId]
+      `INSERT INTO users (email, password, first_name, last_name, role_Id)
+       VALUES ($1, $2, $3, $4, $5) RETURNING user_id, email, first_name, last_name, role_Id`,
+      [email, hashedPassword, first_name, last_name, role_Id]
     );
 
     // Generar JWT
     const token = jwt.sign(
-      { userId: newUser.user_id, email: newUser.email, roleId: newUser.roleId },
+      { userId: newUser.user_id, email: newUser.email, role_Id: newUser.role_Id },
       process.env.JWT_SECRET,  // Usamos la clave secreta del .env
       { expiresIn: '1h' }  // El token expirará en 1 hora
     );
@@ -120,7 +120,7 @@ router.post('/register', async (req, res) => {
         email: newUser.email,
         first_name: newUser.first_name,
         last_name: newUser.last_name,
-        roleId: newUser.roleId  // Ahora incluimos roleId en lugar de role
+        role_Id: newUser.role_Id  
       }
     });
   } catch (error) {
