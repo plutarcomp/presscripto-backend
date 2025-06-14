@@ -37,12 +37,17 @@ app.use('/api/doctors', doctorsRoutes);
 app.use('/api/specialties', specialtiesRoutes);
 
 
+
 // Ruta health check
 app.get('/health', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+  const apiVersion = packageJson.version;
   const healthStatus = {
     message: 'API está funcionando correctamente',
     timestamp: new Date().toISOString(),  // Timestamp actual en formato ISO
-    version: '1.0.0',  // La versión actual de la API
+    version: apiVersion,  // La versión actual de la API
     uptime: process.uptime(),  // El tiempo que el servidor ha estado en funcionamiento (en segundos)
     memoryUsage: process.memoryUsage(),  // Información sobre el uso de memoria del servidor
   };
