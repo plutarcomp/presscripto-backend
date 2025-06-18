@@ -30,7 +30,8 @@ app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
-app.use('/api/login', authRoutes);  
+app.use('/api/login', authRoutes);
+app.use('/send-sms', authRoutes);  
 
 // Rutas para la api
 app.use('/api/doctors', doctorsRoutes);
