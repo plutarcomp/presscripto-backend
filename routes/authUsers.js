@@ -7,12 +7,12 @@ const db = require('../db');
 
 /**
  * @swagger
- * /api/auth/register:
+ * /api/register:
  *   post:
  *     tags:
- *       - Usuarios  # Agrupamos esta ruta bajo "Usuarios"
+ *       - Autenticación  # Agrupamos esta ruta bajo "Autenticación"
  *     summary: Registra un nuevo usuario
- *     description: Registra un nuevo usuario en la base de datos, valida la información y hashea la contraseña.
+ *     description: Registra un nuevo usuario con su correo, contraseña, nombre, teléfono y role.
  *     requestBody:
  *       required: true
  *       content:
@@ -22,11 +22,10 @@ const db = require('../db');
  *             properties:
  *               email:
  *                 type: string
- *                 format: email
  *                 example: "juan.perez@example.com"
  *               password:
  *                 type: string
- *                 example: "password123"
+ *                 example: "contraseña123"
  *               first_name:
  *                 type: string
  *                 example: "Juan"
@@ -35,10 +34,10 @@ const db = require('../db');
  *                 example: "Pérez"
  *               role_id:
  *                 type: integer
- *                 example: 1  # El ID del rol (ej. 1 para 'user', 2 para 'admin', etc.)
+ *                 example: 1  # El ID del rol
  *               phone_number:
  *                 type: string
- *                 example: "5551234567"  # Número de teléfono del usuario
+ *                 example: "5551234567"
  *     responses:
  *       201:
  *         description: Usuario registrado correctamente
@@ -47,38 +46,35 @@ const db = require('../db');
  *             schema:
  *               type: object
  *               properties:
- *                 message:
+ *                 user_id:
+ *                   type: integer
+ *                   example: 1
+ *                 email:
  *                   type: string
- *                   example: "Usuario registrado correctamente"
- *                 user:
- *                   type: object
- *                   properties:
- *                     user_id:
- *                       type: integer
- *                       example: 1
- *                     email:
- *                       type: string
- *                       example: "juan.perez@example.com"
- *                     first_name:
- *                       type: string
- *                       example: "Juan"
- *                     last_name:
- *                       type: string
- *                       example: "Pérez"
- *                     role_id:
- *                       type: integer
- *                       example: 1  # El ID del rol
- *                     phone_number:
- *                       type: string
- *                       example: "5551234567"  # Número de teléfono del usuario
+ *                   example: "juan.perez@example.com"
+ *                 first_name:
+ *                   type: string
+ *                   example: "Juan"
+ *                 last_name:
+ *                   type: string
+ *                   example: "Pérez"
+ *                 role_id:
+ *                   type: integer
+ *                   example: 1
+ *                 role_name:
+ *                   type: string
+ *                   example: "Administrador"
+ *                 phone_number:
+ *                   type: string
+ *                   example: "5551234567"
  *       400:
- *         description: Datos incorrectos o incompletos
+ *         description: Faltan datos o el role_id no existe
  *       500:
  *         description: Error al registrar el usuario
  */
 
 
-// POST - Registro de usuario
+
 router.post('/register', async (req, res) => {
   const { email, password, first_name, last_name, role_id, phone_number } = req.body; 
 
@@ -87,8 +83,14 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
   }
 
-  // Verificar si el email ya está registrado
+  // Verificar si el role_id existe en la tabla roles
   try {
+    const roleExists = await db.oneOrNone('SELECT * FROM roles WHERE role_id = $1', [role_id]);
+    if (!roleExists) {
+      return res.status(400).json({ mensaje: 'El role_id proporcionado no existe' });
+    }
+
+    // Verificar si el email ya está registrado
     const existingUser = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
     if (existingUser) {
       return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado' });
@@ -104,6 +106,12 @@ router.post('/register', async (req, res) => {
       [email, hashedPassword, first_name, last_name, role_id, phone_number]  
     );
 
+    // Obtener el nombre del rol asociado al user_id
+    const role = await db.oneOrNone(
+      'SELECT name FROM roles WHERE role_id = $1',
+      [newUser.role_id]
+    );
+
     // Devolver la respuesta con el token
     res.status(201).json({
       message: 'Usuario registrado correctamente',
@@ -113,6 +121,7 @@ router.post('/register', async (req, res) => {
         first_name: newUser.first_name,
         last_name: newUser.last_name,
         role_id: newUser.role_id, 
+        role_name: role ? role.name : null,  // Devolvemos el nombre del rol
         phone_number: newUser.phone_number  
       }
     });
