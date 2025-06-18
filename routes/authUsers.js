@@ -4,6 +4,7 @@ require('dotenv').config();
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const SmsService = require('../services/sms.service')
 
 /**
  * @swagger
@@ -250,6 +251,54 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Error al realizar el login:', error);
     res.status(500).json({ mensaje: 'Error al realizar el login' });
+  }
+});
+
+const smsService = new SmsService();
+
+/**
+ * @swagger
+ * /api/auth/send-sms:
+ *   post:
+ *     tags:
+ *       - Autenticación  # Agrupamos esta ruta bajo "Autenticación"
+ *     summary: Enviar un SMS
+ *     description: Envia un SMS a un número de teléfono usando LabsMobile.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phoneNumber
+ *               - message
+ *             properties:
+ *               phoneNumber:
+ *                 type: string
+ *                 example: "+34612345678"
+ *               message:
+ *                 type: string
+ *                 example: "Hola, este es un mensaje de prueba"
+ *     responses:
+ *       200:
+ *         description: Respuesta exitosa
+ *       400:
+ *         description: Error al enviar el SMS
+ */
+router.post('/send-sms', async (req, res) => {
+  const { phoneNumber, message } = req.body;
+
+  if (!phoneNumber || !message) {
+    return res.status(400).json({ error: 'Faltan parámetros' });
+  }
+
+  const result = await smsService.sendSms(phoneNumber, message);
+
+  if (result.success) {
+    res.status(200).json(result);
+  } else {
+    res.status(400).json(result);
   }
 });
 
