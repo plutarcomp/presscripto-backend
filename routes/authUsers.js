@@ -10,9 +10,9 @@ const db = require('../db');
  * /api/auth/register:
  *   post:
  *     tags:
- *       - Usuarios  # Agrupamos esta ruta bajo "Usuarios"
+ *       - Autenticación  # Agrupamos esta ruta bajo "Autenticación"
  *     summary: Registra un nuevo usuario
- *     description: Registra un nuevo usuario en la base de datos, valida la información y hashea la contraseña.
+ *     description: Registra un nuevo usuario con su correo, contraseña, nombre, teléfono y role.
  *     requestBody:
  *       required: true
  *       content:
@@ -22,11 +22,10 @@ const db = require('../db');
  *             properties:
  *               email:
  *                 type: string
- *                 format: email
  *                 example: "juan.perez@example.com"
  *               password:
  *                 type: string
- *                 example: "password123"
+ *                 example: "contraseña123"
  *               first_name:
  *                 type: string
  *                 example: "Juan"
@@ -35,10 +34,10 @@ const db = require('../db');
  *                 example: "Pérez"
  *               role_id:
  *                 type: integer
- *                 example: 1  # El ID del rol (ej. 1 para 'user', 2 para 'admin', etc.)
+ *                 example: 1  # El ID del rol
  *               phone_number:
  *                 type: string
- *                 example: "5551234567"  # Número de teléfono del usuario
+ *                 example: "5551234567"
  *     responses:
  *       201:
  *         description: Usuario registrado correctamente
@@ -47,38 +46,35 @@ const db = require('../db');
  *             schema:
  *               type: object
  *               properties:
- *                 message:
+ *                 user_id:
+ *                   type: integer
+ *                   example: 1
+ *                 email:
  *                   type: string
- *                   example: "Usuario registrado correctamente"
- *                 user:
- *                   type: object
- *                   properties:
- *                     user_id:
- *                       type: integer
- *                       example: 1
- *                     email:
- *                       type: string
- *                       example: "juan.perez@example.com"
- *                     first_name:
- *                       type: string
- *                       example: "Juan"
- *                     last_name:
- *                       type: string
- *                       example: "Pérez"
- *                     role_id:
- *                       type: integer
- *                       example: 1  # El ID del rol
- *                     phone_number:
- *                       type: string
- *                       example: "5551234567"  # Número de teléfono del usuario
+ *                   example: "juan.perez@example.com"
+ *                 first_name:
+ *                   type: string
+ *                   example: "Juan"
+ *                 last_name:
+ *                   type: string
+ *                   example: "Pérez"
+ *                 role_id:
+ *                   type: integer
+ *                   example: 1
+ *                 role_name:
+ *                   type: string
+ *                   example: "Administrador"
+ *                 phone_number:
+ *                   type: string
+ *                   example: "5551234567"
  *       400:
- *         description: Datos incorrectos o incompletos
+ *         description: Faltan datos o el role_id no existe
  *       500:
  *         description: Error al registrar el usuario
  */
 
 
-// POST - Registro de usuario
+
 router.post('/register', async (req, res) => {
   const { email, password, first_name, last_name, role_id, phone_number } = req.body; 
 
@@ -87,8 +83,14 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
   }
 
-  // Verificar si el email ya está registrado
+  // Verificar si el role_id existe en la tabla roles
   try {
+    const roleExists = await db.oneOrNone('SELECT * FROM roles WHERE role_id = $1', [role_id]);
+    if (!roleExists) {
+      return res.status(400).json({ mensaje: 'El role_id proporcionado no existe' });
+    }
+
+    // Verificar si el email ya está registrado
     const existingUser = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
     if (existingUser) {
       return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado' });
@@ -104,6 +106,12 @@ router.post('/register', async (req, res) => {
       [email, hashedPassword, first_name, last_name, role_id, phone_number]  
     );
 
+    // Obtener el nombre del rol asociado al user_id
+    const role = await db.oneOrNone(
+      'SELECT name FROM roles WHERE role_id = $1',
+      [newUser.role_id]
+    );
+
     // Devolver la respuesta con el token
     res.status(201).json({
       message: 'Usuario registrado correctamente',
@@ -113,6 +121,7 @@ router.post('/register', async (req, res) => {
         first_name: newUser.first_name,
         last_name: newUser.last_name,
         role_id: newUser.role_id, 
+        role_name: role ? role.name : null,  // Devolvemos el nombre del rol
         phone_number: newUser.phone_number  
       }
     });
@@ -127,9 +136,9 @@ router.post('/register', async (req, res) => {
  * /api/auth/login:
  *   post:
  *     tags:
- *       - Usuarios  # Agrupamos esta ruta bajo "Usuarios"
- *     summary: Inicia sesión con email y contraseña y genera un JWT
- *     description: Valida el email y la contraseña del usuario y genera un JWT en caso de éxito.
+ *       - Autenticación  # Agrupamos esta ruta bajo "Autenticación"
+ *     summary: Inicia sesión con el correo y la contraseña
+ *     description: Inicia sesión con el correo y la contraseña, y devuelve el token de acceso junto con los datos del usuario, incluyendo el nombre del rol.
  *     requestBody:
  *       required: true
  *       content:
@@ -139,14 +148,13 @@ router.post('/register', async (req, res) => {
  *             properties:
  *               email:
  *                 type: string
- *                 format: email
  *                 example: "juan.perez@example.com"
  *               password:
  *                 type: string
- *                 example: "password123"
+ *                 example: "contraseña123"
  *     responses:
  *       200:
- *         description: Login exitoso y token generado
+ *         description: Login exitoso
  *         content:
  *           application/json:
  *             schema:
@@ -157,7 +165,7 @@ router.post('/register', async (req, res) => {
  *                   example: "Login exitoso"
  *                 token:
  *                   type: string
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoiam9hbi5wZXJleiJ9.2e0g8rkl5kakl5g1233"
+ *                   example: "JWT_TOKEN"
  *                 user:
  *                   type: object
  *                   properties:
@@ -175,20 +183,20 @@ router.post('/register', async (req, res) => {
  *                       example: "Pérez"
  *                     role_id:
  *                       type: integer
- *                       example: 1  # El ID del rol
+ *                       example: 1
+ *                     role_name:
+ *                       type: string
+ *                       example: "Administrador"
  *                     phone_number:
  *                       type: string
- *                       example: "5551234567"  
+ *                       example: "5551234567"
  *       400:
- *         description: Credenciales incorrectas
- *       404:
- *         description: Usuario no encontrado
+ *         description: Email o contraseña incorrectos
  *       500:
  *         description: Error al realizar el login
  */
 
 
-// POST - Login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;  // Ahora obtenemos email y password desde el cuerpo (body)
 
@@ -211,6 +219,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ mensaje: 'Contraseña incorrecta' });
     }
 
+    // Obtener el nombre del rol asociado al user_id
+    const role = await db.oneOrNone(
+      'SELECT name FROM roles WHERE role_id = $1',
+      [user.role_id]
+    );
+
     // Generar JWT
     const token = jwt.sign(
       { userId: user.user_id, email: user.email, role_id: user.role_id },
@@ -218,7 +232,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: process.env.EXP_TOKEN }  
     );
 
-    // Devolver la respuesta con el token
+    // Devolver la respuesta con el token 
     res.status(200).json({
       message: 'Login exitoso',
       token,
@@ -228,6 +242,7 @@ router.post('/login', async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         role_id: user.role_id,
+        role_name: role ? role.name : null,  
         phone_number: user.phone_number  
       }
     });
