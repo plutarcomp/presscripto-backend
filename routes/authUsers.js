@@ -7,7 +7,7 @@ const db = require('../db');
 
 /**
  * @swagger
- * /api/register:
+ * /api/auth/register:
  *   post:
  *     tags:
  *       - Autenticación  # Agrupamos esta ruta bajo "Autenticación"
@@ -136,9 +136,9 @@ router.post('/register', async (req, res) => {
  * /api/auth/login:
  *   post:
  *     tags:
- *       - Usuarios  # Agrupamos esta ruta bajo "Usuarios"
- *     summary: Inicia sesión con email y contraseña y genera un JWT
- *     description: Valida el email y la contraseña del usuario y genera un JWT en caso de éxito.
+ *       - Autenticación  # Agrupamos esta ruta bajo "Autenticación"
+ *     summary: Inicia sesión con el correo y la contraseña
+ *     description: Inicia sesión con el correo y la contraseña, y devuelve el token de acceso junto con los datos del usuario, incluyendo el nombre del rol.
  *     requestBody:
  *       required: true
  *       content:
@@ -148,14 +148,13 @@ router.post('/register', async (req, res) => {
  *             properties:
  *               email:
  *                 type: string
- *                 format: email
  *                 example: "juan.perez@example.com"
  *               password:
  *                 type: string
- *                 example: "password123"
+ *                 example: "contraseña123"
  *     responses:
  *       200:
- *         description: Login exitoso y token generado
+ *         description: Login exitoso
  *         content:
  *           application/json:
  *             schema:
@@ -166,7 +165,7 @@ router.post('/register', async (req, res) => {
  *                   example: "Login exitoso"
  *                 token:
  *                   type: string
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoiam9hbi5wZXJleiJ9.2e0g8rkl5kakl5g1233"
+ *                   example: "JWT_TOKEN"
  *                 user:
  *                   type: object
  *                   properties:
@@ -184,20 +183,20 @@ router.post('/register', async (req, res) => {
  *                       example: "Pérez"
  *                     role_id:
  *                       type: integer
- *                       example: 1  # El ID del rol
+ *                       example: 1
+ *                     role_name:
+ *                       type: string
+ *                       example: "Administrador"
  *                     phone_number:
  *                       type: string
- *                       example: "5551234567"  
+ *                       example: "5551234567"
  *       400:
- *         description: Credenciales incorrectas
- *       404:
- *         description: Usuario no encontrado
+ *         description: Email o contraseña incorrectos
  *       500:
  *         description: Error al realizar el login
  */
 
 
-// POST - Login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;  // Ahora obtenemos email y password desde el cuerpo (body)
 
@@ -220,6 +219,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ mensaje: 'Contraseña incorrecta' });
     }
 
+    // Obtener el nombre del rol asociado al user_id
+    const role = await db.oneOrNone(
+      'SELECT name FROM roles WHERE role_id = $1',
+      [user.role_id]
+    );
+
     // Generar JWT
     const token = jwt.sign(
       { userId: user.user_id, email: user.email, role_id: user.role_id },
@@ -227,7 +232,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: process.env.EXP_TOKEN }  
     );
 
-    // Devolver la respuesta con el token
+    // Devolver la respuesta con el token 
     res.status(200).json({
       message: 'Login exitoso',
       token,
@@ -237,6 +242,7 @@ router.post('/login', async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         role_id: user.role_id,
+        role_name: role ? role.name : null,  
         phone_number: user.phone_number  
       }
     });
