@@ -26,6 +26,10 @@ const swaggerOptions = {
         name: 'Especialidades',  // Tag para las rutas de especialidades
         description: 'Endpoint para obtener las especialidades médicas'
       },
+      {
+        name: 'Servicios',  
+        description: 'Endpoint para servicios como envío de correos electrónicos y SMS'
+      },
     ],
   },
   apis: ['./routes/*.js'],
