@@ -26,8 +26,8 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > key.pem
           chmod 600 key.pem
           ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-            docker stack deploy -c /home/${{ secrets.SERVER_USER }}/Academy/docker-stack.yml prescripto_stack
+            docker stack deploy -c /home/${{ secrets.SERVER_USER }}/Academy/docker-stack.yml prescripto-stack --detach 
             sleep 10
             docker service ls --filter name=prescripto_stack --format "table {{.Name}}\t{{.Image}}\t{{.Replicas}}"
-            docker service inspect --format='{{.Spec.TaskTemplate.ContainerSpec.Image}}' prescripto_stack_backend
+            docker service inspect --format='{{.Spec.TaskTemplate.ContainerSpec.Image}}' prescripto-stack_backend
           EOF
