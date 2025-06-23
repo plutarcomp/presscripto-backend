@@ -7,7 +7,7 @@ on:
 
 env:
   IMAGE_NAME: prescripto-backend
-  STACK_NAME: prescripto_stack
+  STACK_NAME: prescripto-stack
   COMPOSE_PATH: /home/${{ secrets.SERVER_USER }}/Academy/docker-stack.yml
 
 jobs:
