@@ -6,7 +6,8 @@ const doctorsRoutes = require('./routes/doctors');
 const specialtiesRoutes = require('./routes/specialties');
 const authRoutes = require('./routes/authUsers'); 
 const SmsService = require('./routes/services');
-const emailRoutes = require('./routes/services'); 
+const emailRoutes = require('./routes/services');
+const OTPGenerator = require('./routes/services'); 
 
 const app = express();
 const port = 3000;
@@ -41,6 +42,7 @@ app.use('/api/specialties', specialtiesRoutes);
 // Rutas de servicios
 app.use('/api', emailRoutes);
 app.use('/send-sms', SmsService);
+app.use('/otpGenerator-sms', OTPGenerator);
 
 // Ruta health check
 app.get('/health', (req, res) => {

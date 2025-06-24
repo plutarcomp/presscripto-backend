@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const SmsService = require('../services/sms.service')
+const SmsService = require('../services/sms.service');
 const EmailService = require('../services/email.service');
+const otpGenerator = require('../services/otpGenerator');
 
 const smsService = new SmsService();
 
@@ -101,6 +102,59 @@ router.post('/send-email', async (req, res) => {
   } catch (error) {
     console.error('Error al enviar el correo:', error);
     res.status(500).json({ mensaje: 'Error al enviar el correo' });
+  }
+});
+
+const otpGeneratorSms = otpGenerator;
+
+/**
+ * @swagger
+ * /api/otpGenerator-sms:
+ *   post:
+ *     tags:
+ *       - Servicios
+ *     summary: Generar el OTP y enviarlo mendiante un SMS
+ *     description: Envia un SMS a un número de teléfono usando LabsMobile, cuyo contenido es el OTP.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phoneNumber
+ *               - message
+ *             properties:
+ *               phoneNumber:
+ *                 type: string
+ *                 example: "+34612345678"
+ *               
+ *     responses:
+ *       200:
+ *         description: Respuesta exitosa
+ *       400:
+ *         description: Error al enviar el SMS
+ */
+router.post('/otpGenerator-sms', async (req, res) => {
+  const { phoneNumber } = req.body;
+
+  if (!phoneNumber) {
+    return res.status(400).json({ error: 'Faltan parámetros' });
+  }
+
+  const otp = otpGeneratorSms.generate(phoneNumber, {
+    digits: 6,         // 6 dígitos
+    expiryMinutes: 5   // expira en 5 minutos
+  });
+  
+  const message = 'Su código de identificación es ' + otp;
+  
+  const result = await smsService.sendSms(phoneNumber, message);
+
+  if (result.success) {
+    res.status(200).json(result);
+  } else {
+    res.status(400).json(result);
   }
 });
 
