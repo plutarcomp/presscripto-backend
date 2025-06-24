@@ -33,7 +33,7 @@ jobs:
     name: 🚀 Deploy Stack on Server
     runs-on: ubuntu-latest
     needs: build
-    environment: production
+    environment: Dev
 
     steps:
       - name: 📦 Deploy stack on remote server
