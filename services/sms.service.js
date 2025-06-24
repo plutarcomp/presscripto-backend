@@ -24,13 +24,13 @@ class SmsService {
       url: "https://api.labsmobile.com/json/send",
       headers: {
         "Content-Type": "application/json",
-        Authorization:
+        "Authorization":
           "Basic " +
           Buffer.from(
             `${process.env.SMS_USERNAME}:${process.env.SMS_TOKEN}`
-          ).toString("base64"),
+          ).toString("base64")
       },
-      data: data,
+      data: data
     };
 
     try {
