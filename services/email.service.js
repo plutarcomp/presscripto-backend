@@ -1,5 +1,6 @@
-const nodemailer = require('nodemailer');
 require('dotenv').config();
+const nodemailer = require('nodemailer');
+
 
 class EmailService {
   constructor() {
