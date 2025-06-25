@@ -23,6 +23,25 @@ jobs:
       - name: 🔐 Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
+      - name: 🧪 Generar archivo .env desde secrets  
+        run: |
+          cat <<EOF > .env
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_SSL_MODE=${{ secrets.DB_SSL_MODE }}
+          
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EXP_TOKEN=${{ secrets.EXP_TOKEN }}
+          
+          GMAIL_USER=${{ secrets.GMAIL_USER }}
+          GMAIL_PASSWORD=${{ secrets.GMAIL_PASSWORD }}
+          
+          SMS_TOKEN=${{ secrets.SMS_TOKEN }}
+          SMS_USERNAME=${{ secrets.SMS_USERNAME }}
+          EOF
       - name: 🛠️ Build Docker image
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest .
 
