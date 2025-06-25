@@ -149,21 +149,15 @@ router.get("/", async (req, res) => {
  *                       address_id:
  *                         type: integer
  *                         example: 101
- *                       street_address:
+ *                       address:
  *                         type: string
  *                         example: "Av. Siempre Viva 123"
- *                       city:
+ *                       number_ext:
  *                         type: string
- *                         example: "Springfield"
- *                       state:
+ *                         example: "456"
+ *                       number_int:
  *                         type: string
- *                         example: "Illinois"
- *                       postal_code:
- *                         type: string
- *                         example: "62701"
- *                       country:
- *                         type: string
- *                         example: "USA"
+ *                         example: "789"
  *                 image_url:
  *                   type: string
  *                   example: "http://example.com/doctor-image.jpg"
@@ -197,7 +191,7 @@ router.get("/:doctor_id", async (req, res) => {
 
     // Obtener las direcciones asociadas al doctor
     const addresses = await db.any(
-      `SELECT a.address_id, a.street_address, a.city, a.state, a.postal_code, a.country
+      `SELECT a.address_id, a.address, a.number_ext, a.number_int
        FROM doctor_addresses da
        JOIN addresses a ON da.address_id = a.address_id
        WHERE da.doctor_id = $1`,
@@ -235,9 +229,9 @@ router.get("/:doctor_id", async (req, res) => {
  * /api/doctors:
  *   post:
  *     tags:
- *       - Doctores  # Agrupamos esta ruta bajo "Doctores"
- *     summary: Crea un nuevo doctor con varias especialidades, direcciones e imágenes
- *     description: Crea un nuevo doctor en la base de datos junto con sus especialidades, varias direcciones e imágenes.
+ *       - Doctores
+ *     summary: Crear un nuevo doctor
+ *     description: Crea un nuevo doctor en la base de datos, incluyendo especialidades, direcciones e imágenes.
  *     requestBody:
  *       required: true
  *       content:
@@ -262,181 +256,96 @@ router.get("/:doctor_id", async (req, res) => {
  *                 items:
  *                   type: integer
  *                   example: 1  # El ID de la especialidad
- *               address:
+ *               addresses:
  *                 type: array
  *                 items:
  *                   type: object
  *                   properties:
- *                     street_address:
+ *                     address:
  *                       type: string
  *                       example: "Av. Siempre Viva 123"
- *                     city:
+ *                     number_ext:
  *                       type: string
- *                       example: "Springfield"
- *                     state:
+ *                       example: "456"
+ *                     number_int:
  *                       type: string
- *                       example: "Illinois"
- *                     postal_code:
- *                       type: string
- *                       example: "62701"
- *                     country:
- *                       type: string
- *                       example: "USA"
+ *                       example: "789"
  *               image_url:
  *                 type: array
  *                 items:
  *                   type: string
- *                   example: "http://example.com/doctor-image1.jpg"  # Una URL de imagen
+ *                   example: "http://example.com/doctor-image.jpg"
  *     responses:
  *       201:
  *         description: Doctor creado correctamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 doctor_id:
- *                   type: integer
- *                   example: 1
- *                 first_name:
- *                   type: string
- *                   example: "Juan"
- *                 last_name:
- *                   type: string
- *                   example: "Pérez"
- *                 phone_number:
- *                   type: string
- *                   example: "5551234567"
- *                 availability:
- *                   type: boolean
- *                   example: true
- *                 specialties:
- *                   type: array
- *                   items:
- *                     type: integer
- *                     example: 1
- *                 address:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       street_address:
- *                         type: string
- *                         example: "Av. Siempre Viva 123"
- *                       city:
- *                         type: string
- *                         example: "Springfield"
- *                       state:
- *                         type: string
- *                         example: "Illinois"
- *                       postal_code:
- *                         type: string
- *                         example: "62701"
- *                       country:
- *                         type: string
- *                         example: "USA"
- *                 image_urls:
- *                   type: array
- *                   items:
- *                     type: string
- *                     example: "http://example.com/doctor-image1.jpg"
  *       400:
  *         description: Datos incorrectos o incompletos
  *       500:
  *         description: Error al crear el doctor
  */
-
 router.post("/", async (req, res) => {
-  const {
-    first_name,
-    last_name,
-    phone_number,
-    availability,
-    specialties,
-    address,
-    image_url,
-  } = req.body;
+  const { first_name, last_name, phone_number, availability, specialties, addresses, image_url } = req.body;
 
   // Verificación básica de los datos
-  if (
-    !first_name ||
-    !last_name ||
-    !phone_number ||
-    availability === undefined ||
-    !specialties ||
-    !address ||
-    address.length === 0
-  ) {
-    return res.status(400).json({
-      mensaje:
-        "Faltan datos necesarios para crear el doctor o las direcciones.",
-    });
+  if (!first_name || !last_name || !phone_number || !availability || !specialties || !addresses || addresses.length === 0) {
+    return res.status(400).json({ mensaje: "Todos los campos son requeridos." });
   }
 
   try {
-    // Insertamos el doctor en la tabla doctors
+    // Insertar el nuevo doctor en la tabla doctors
     const result = await db.one(
-      `INSERT INTO doctor_profile(first_name, last_name, phone_number, availability)
-       VALUES($1, $2, $3, $4) RETURNING doctor_id`,
+      `INSERT INTO doctor_profile (first_name, last_name, phone_number, availability)
+       VALUES ($1, $2, $3, $4) RETURNING doctor_id`,
       [first_name, last_name, phone_number, availability]
     );
 
     const doctor_id = result.doctor_id;
 
-    // Insertamos las especialidades en la tabla doctors_specialties
+    // Insertar las especialidades asociadas al doctor
     for (let specialty_id of specialties) {
       await db.none(
-        `INSERT INTO doctors_specialties(doctor_id, specialty_id)
-         VALUES($1, $2)`,
+        `INSERT INTO doctors_specialties (doctor_id, specialty_id)
+         VALUES ($1, $2)`,
         [doctor_id, specialty_id]
       );
     }
 
-    // Insertamos las direcciones en la tabla addresses y asociamos al doctor
-    for (let addr of address) {
-      // Insertamos la dirección en la tabla addresses
+    // Insertar las direcciones asociadas al doctor
+    for (let addr of addresses) {
       const addressResult = await db.one(
-        `INSERT INTO addresses(street_address, city, state, postal_code, country)
-         VALUES($1, $2, $3, $4, $5) RETURNING address_id`,
-        [
-          addr.street_address,
-          addr.city,
-          addr.state,
-          addr.postal_code,
-          addr.country,
-        ]
+        `INSERT INTO addresses (address, number_ext, number_int)
+         VALUES ($1, $2, $3) RETURNING address_id`,
+        [addr.address, addr.number_ext, addr.number_int]
       );
 
       const address_id = addressResult.address_id;
 
-      // Vinculamos la dirección con el doctor en la tabla doctor_addresses
+      // Vincular la dirección al doctor en la tabla doctor_addresses
       await db.none(
-        `INSERT INTO doctor_addresses(doctor_id, address_id)
-         VALUES($1, $2)`,
+        `INSERT INTO doctor_addresses (doctor_id, address_id)
+         VALUES ($1, $2)`,
         [doctor_id, address_id]
       );
     }
 
-    // Insertamos las imágenes del doctor si existen
+    // Insertar las imágenes asociadas al doctor
     if (image_url && Array.isArray(image_url)) {
-      // Si se recibe un arreglo de imágenes, las insertamos todas
       for (let url of image_url) {
         await db.none(
-          `INSERT INTO doctor_images(doctor_id, image_url)
-           VALUES($1, $2)`,
+          `INSERT INTO doctor_images (doctor_id, image_url)
+           VALUES ($1, $2)`,
           [doctor_id, url]
         );
       }
     } else if (image_url) {
-      // Si solo se recibe una imagen, la insertamos directamente
       await db.none(
-        `INSERT INTO doctor_images(doctor_id, image_url)
-         VALUES($1, $2)`,
+        `INSERT INTO doctor_images (doctor_id, image_url)
+         VALUES ($1, $2)`,
         [doctor_id, image_url]
       );
     }
 
-    // Respondemos con la información del doctor creado
+    // Responder con la información del doctor creado
     res.status(201).json({
       doctor_id,
       first_name,
@@ -444,8 +353,8 @@ router.post("/", async (req, res) => {
       phone_number,
       availability,
       specialties,
-      address,
-      image_urls: Array.isArray(image_url) ? image_url : [image_url], // Aseguramos que siempre sea un arreglo
+      addresses,
+      image_url: Array.isArray(image_url) ? image_url : [image_url], // Aseguramos que siempre sea un arreglo
     });
   } catch (error) {
     console.error("Error al crear el doctor:", error);
@@ -498,21 +407,15 @@ router.post("/", async (req, res) => {
  *                 items:
  *                   type: object
  *                   properties:
- *                     street_address:
+ *                     address:
  *                       type: string
  *                       example: "Av. Siempre Viva 123"
- *                     city:
+ *                     number_ext:
  *                       type: string
- *                       example: "Springfield"
- *                     state:
+ *                       example: "456"
+ *                     number_int:
  *                       type: string
- *                       example: "Illinois"
- *                     postal_code:
- *                       type: string
- *                       example: "62701"
- *                     country:
- *                       type: string
- *                       example: "USA"
+ *                       example: "789"
  *               image_url:
  *                 type: array
  *                 items:
@@ -551,21 +454,15 @@ router.post("/", async (req, res) => {
  *                   items:
  *                     type: object
  *                     properties:
- *                       street_address:
+ *                       address:
  *                         type: string
- *                         example: "Av. Siempre Viva 123"
- *                       city:
+ *                         example: "Av. Siempre Viva 123" 
+ *                       number_ext:
  *                         type: string
- *                         example: "Springfield"
- *                       state:
+ *                         example: "456"
+ *                       number_int:
  *                         type: string
- *                         example: "Illinois"
- *                       postal_code:
- *                         type: string
- *                         example: "62701"
- *                       country:
- *                         type: string
- *                         example: "USA"
+ *                         example: "789"
  *                 image_urls:
  *                   type: array
  *                   items:
@@ -578,7 +475,6 @@ router.post("/", async (req, res) => {
  *       500:
  *         description: Error al actualizar el doctor
  */
-
 router.put("/:doctor_id", async (req, res) => {
   const { doctor_id } = req.params;
   const {
@@ -645,14 +541,12 @@ router.put("/:doctor_id", async (req, res) => {
     for (let addr of address) {
       // Insertamos la nueva dirección en la tabla addresses
       const addressResult = await db.one(
-        `INSERT INTO addresses(street_address, city, state, postal_code, country)
-         VALUES($1, $2, $3, $4, $5) RETURNING address_id`,
+        `INSERT INTO addresses(address, number_ext, number_int)
+         VALUES($1, $2, $3) RETURNING address_id`,
         [
-          addr.street_address,
-          addr.city,
-          addr.state,
-          addr.postal_code,
-          addr.country,
+          addr.address,
+          addr.number_ext,
+          addr.number_int,
         ]
       );
 
@@ -702,6 +596,7 @@ router.put("/:doctor_id", async (req, res) => {
   }
 });
 
+// Metodo DELETE by id
 /**
  * @swagger
  * /api/doctors/{doctor_id}:
