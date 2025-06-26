@@ -27,6 +27,14 @@ const swaggerOptions = {
         description: 'Endpoint para obtener las especialidades médicas'
       },
       {
+        name: 'Usuarios',  // Tag para las rutas de usuarios
+        description: 'Endpoint para manejar la información de los usuarios'
+      },
+      {
+        name: 'Autenticación',  // Tag para las rutas de autenticación
+        description: 'Endpoint para autenticación y autorización de usuarios'
+      },
+      {
         name: 'Servicios',  
         description: 'Endpoint para servicios como envío de correos electrónicos y SMS'
       },
