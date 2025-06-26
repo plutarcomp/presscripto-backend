@@ -7,7 +7,7 @@ const specialtiesRoutes = require('./routes/specialties');
 const authRoutes = require('./routes/authUsers'); 
 const SmsService = require('./routes/services');
 const emailRoutes = require('./routes/services'); 
-
+const userRoutes = require('./routes/users');
 const app = express();
 const port = 3000;
 
@@ -37,6 +37,7 @@ app.use('/api/login', authRoutes);
 // Rutas para la api
 app.use('/api/doctors', doctorsRoutes);
 app.use('/api/specialties', specialtiesRoutes);
+app.use('/api/users', userRoutes);
 
 // Rutas de servicios
 app.use('/api', emailRoutes);
