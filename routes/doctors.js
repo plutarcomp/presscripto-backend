@@ -3,17 +3,26 @@ const db = require("../db"); // Importamos la conexión a la base de datos
 const router = express.Router();
 
 // Metodo GET ALL
+
 /**
  * @swagger
  * /api/doctors:
  *   get:
  *     tags:
  *       - Doctores
- *     summary: Obtiene una lista de todos los doctores con sus especialidades e imágenes
- *     description: Retorna una lista de todos los doctores con sus especialidades asociadas y las URLs de sus imágenes.
+ *     summary: Obtiene una lista de todos los doctores
+ *     description: Obtiene una lista de doctores con sus especialidades e imágenes, con opción a limitar la cantidad de resultados.
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         description: Número máximo de doctores a devolver. Si no se especifica, se devuelven todos los doctores.
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           example: 5
  *     responses:
  *       200:
- *         description: Lista de doctores con especialidades e imágenes
+ *         description: Lista de doctores con sus especialidades e imágenes
  *         content:
  *           application/json:
  *             schema:
@@ -36,7 +45,7 @@ const router = express.Router();
  *                   availability:
  *                     type: boolean
  *                     example: true
- *                   specialty_names:
+ *                   specialties:
  *                     type: array
  *                     items:
  *                       type: string
@@ -45,21 +54,16 @@ const router = express.Router();
  *                     type: array
  *                     items:
  *                       type: string
- *                       example: "http://example.com/doctor-image.jpg"
- *                   created_at:
- *                     type: string
- *                     format: date-time
- *                     example: "2025-05-29T12:00:00.000Z"
- *                   updated_at:
- *                     type: string
- *                     format: date-time
- *                     example: "2025-05-29T12:00:00.000Z"
+ *                       example: "http://example.com/doctor-image1.jpg"
  *       500:
  *         description: Error al obtener los doctores
  */
 
 router.get("/", async (req, res) => {
+  const { limit } = req.query;  // Recoger el parámetro `limit` desde la consulta
+
   try {
+    const limitValue = limit ? parseInt(limit, 10) : 0;  // Si `limit` no es proporcionado, no hay límite
     // Realizamos la consulta SQL para obtener los doctores con sus especialidades y las imágenes asociadas
     const doctors = await db.any(`
       SELECT 
@@ -82,6 +86,7 @@ router.get("/", async (req, res) => {
         d.doctor_id
       ORDER BY 
         d.doctor_id ASC
+         ${limitValue > 0 ? `LIMIT ${limitValue}` : ""}  -- Añadimos el LIMIT dinámicamente si es mayor a 0
     `);
 
     res.json(doctors); // Devolvemos la lista de doctores con sus especialidades e imágenes
