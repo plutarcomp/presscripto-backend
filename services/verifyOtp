@@ -1,0 +1,30 @@
+const otpGenerator = require('./otpGenerator');
+
+async function verifyOtp(identifier, otp) {
+  if (!identifier || !otp) {
+    throw new Error('Identificador y código OTP requeridos');
+  }
+
+  console.log('🔍 Verificando OTP...');
+  console.log('➡️  Identifier recibido:', identifier);
+  console.log('➡️  OTP recibido:', otp);
+
+  const isValid = otpGenerator.verify(identifier, otp);
+
+  console.log('🧠 Resultado de otpGenerator.verify():', isValid);
+  console.log('📦 Estado actual del OTP Store:', otpGenerator.otpStore);
+
+  if (!isValid) {
+    return {
+      success: false,
+      message: 'OTP inválido o expirado',
+    };
+  }
+
+  return {
+    success: true,
+    message: 'OTP verificado correctamente',
+  };
+}
+
+module.exports = verifyOtp;

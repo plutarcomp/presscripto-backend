@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-
+require('dotenv').config();
 //Clase para generar OTP
 class OTPGenerator {
   constructor() {
@@ -8,7 +8,9 @@ class OTPGenerator {
   }
 
   generate(identifier, options = {}) {
-    const { digits = 6, expiryMinutes = 10 } = options;
+    const { digits = parseInt(process.env.OTP_DIGITS) || 6, 
+    expiryMinutes = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10 
+  } = options;
     
     // Generamos un número aleatorio con la cantidad de dígitos especificada
     const min = Math.pow(10, digits - 1);

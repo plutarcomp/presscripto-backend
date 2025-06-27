@@ -1,6 +1,7 @@
 const otpGenerator = require('./otpGenerator');
 const EmailService = require('./email.service');
 const smsService = require('./sms.service');
+require('dotenv').config();
 
 const emailService = new EmailService();
 
@@ -11,9 +12,9 @@ async function sendOtp(email, phoneNumber) {
 
   // 1. Generar el OTP una sola vez
   const otp = otpGenerator.generate(email || phoneNumber, {
-    digits: 6,
-    expiryMinutes: 10,
-  });
+  digits: parseInt(process.env.OTP_DIGITS) || 6,
+  expiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES) || 10,
+});
 
   const tasks = [];
 
