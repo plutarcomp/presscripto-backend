@@ -1,18 +1,59 @@
 const otpGenerator = require('./otpGenerator');
 const EmailService = require('./email.service');
+const smsService = require('./sms.service');
 
 const emailService = new EmailService();
 
-async function sendOtpMail(email) {
-  if (!email) throw new Error('Email requerido');
+async function sendOtp(email, phoneNumber) {
+  if (!email && !phoneNumber) {
+    throw new Error('Se requiere al menos email o teléfono');
+  }
 
-  // 1. Generar el código OTP
-  const otp = otpGenerator.generate(email, { digits: 6, expiryMinutes: 10 });
+  // 1. Generar el OTP una sola vez
+  const otp = otpGenerator.generate(email || phoneNumber, {
+    digits: 6,
+    expiryMinutes: 10,
+  });
 
-  // 2. Usar la plantilla que ya está en tu servicio, reemplazando el 123456
-  // Copiamos aquí el HTML por defecto (el mismo que tienes en email.service.js)
-  const htmlContent = `
-    <html lang="es">
+  const tasks = [];
+
+  // 2. Enviar por correo si hay email
+  if (email) {
+    const htmlContent = getHtmlContentWithOtp(otp);
+    const emailTask = emailService
+      .sendEmail(email, 'Tu código OTP para Prescripto', htmlContent)
+      .then((result) => {
+        if (!result.success) throw new Error('Fallo envío de correo');
+        return { email, success: true };
+      });
+    tasks.push(emailTask);
+  }
+
+  // 3. Enviar por SMS si hay número
+  if (phoneNumber) {
+    const smsMessage = `Tu código de verificación es: ${otp}. Utiliza este código para completar tu verificación.`;
+    const smsTask = smsService
+      .sendSms(phoneNumber, smsMessage)
+      .then((result) => {
+        if (!result.success) throw new Error('Fallo envío de SMS');
+        return { phoneNumber, success: true };
+      });
+    tasks.push(smsTask);
+  }
+
+  // 4. Esperar que ambos se completen
+  await Promise.all(tasks);
+
+  return {
+    message: 'OTP enviado exitosamente por los canales disponibles.',
+    otp,
+    createdAt: new Date(),
+  };
+}
+
+// Función auxiliar para reemplazar el OTP en el HTML
+function getHtmlContentWithOtp(otp) {
+  return`<html lang="es">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -80,23 +121,8 @@ async function sendOtpMail(email) {
       </body>
     </html>
   `.replace('123456', otp);
-
-  // 3. Enviar correo con el OTP insertado
-  const result = await emailService.sendEmail(
-    email,
-    'Tu código OTP para Prescripto',
-    htmlContent
-  );
-
-  if (!result.success) {
-    throw new Error('No se pudo enviar el correo OTP');
-  }
-
-  return {
-    message: 'OTP enviado correctamente al correo.',
-    email,
-    createdAt: new Date(),
-  };
 }
 
-module.exports = sendOtpMail;
+module.exports = sendOtp;
+    
+
