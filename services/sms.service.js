@@ -51,4 +51,4 @@ class SmsService {
   }
 }
 
-module.exports = SmsService;
+module.exports = new SmsService();
