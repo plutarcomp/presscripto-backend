@@ -3,6 +3,7 @@ const router = express.Router();
 const SmsService = require('../services/sms.service')
 const EmailService = require('../services/email.service');
 const sendOtp = require('../services/sendOtp');
+const verifyOtp = require('../services/verifyOtp')
 
 
 /**
@@ -172,4 +173,83 @@ router.post('/send-otp', async (req, res) => {
   }
 });
 
+
+
+/**
+ * @swagger
+ * /api/verify-otp:
+ *   post:
+ *     tags:
+ *       - Servicios  # Agrupamos esta ruta bajo "Servicios"
+ *     summary: Verificar un código OTP
+ *     description: Verifica un código OTP enviado previamente a un correo electrónico o número de celular. Si el OTP es válido y no ha expirado, se devuelve un mensaje de éxito.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               identifier:
+ *                 type: string
+ *                 example: "user@example.com"
+ *                 description: Identificador del usuario al que se le envió el OTP (puede ser el correo electrónico o número de celular).
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
+ *                 description: Código OTP que el usuario ha recibido y necesita verificar.
+ *     responses:
+ *       200:
+ *         description: OTP verificado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   example: "OTP verificado correctamente."
+ *       400:
+ *         description: OTP inválido o expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   example: "OTP inválido o expirado."
+ *       500:
+ *         description: Error al verificar el OTP
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   example: "Error al verificar el OTP."
+ */
+router.post('/verify-otp', async (req, res) => {
+  const { identifier, otp } = req.body;
+
+  if (!identifier || !otp) {
+    return res.status(400).json({ mensaje: 'Identificador y código OTP son requeridos.' });
+  }
+
+  try {
+    const result = await verifyOtp(identifier, otp); // <- devuelve un objeto con success
+
+    if (result.success) {
+      return res.status(200).json({ mensaje: result.message });
+    } else {
+      return res.status(400).json({ mensaje: result.message });
+    }
+  } catch (error) {
+    console.error('Error al verificar el OTP:', error);
+    res.status(500).json({ mensaje: 'Error al verificar el OTP.' });
+  }
+});
+
 module.exports = router;
+
